@@ -5,3 +5,4 @@ before_script:
   - composer install --no-scripts --no-suggest
 script:
   - vendor/bin/phan
+  - vendor/bin/phpcs --standard=vendor/nocworx/phpcs/ruleset.xml src web
