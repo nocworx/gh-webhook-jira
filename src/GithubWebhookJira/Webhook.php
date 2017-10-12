@@ -113,7 +113,6 @@ class Webhook {
     ]);
     $this->_issue = new IssueService($config);
 
-
     $this->_raw_data = $request->getContent();
   }
 
