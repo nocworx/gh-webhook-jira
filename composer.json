@@ -1,0 +1,19 @@
+{
+  "require" : {
+    "php": "^7.0",
+    "monolog/monolog": "^1.22",
+    "symfony/twig-bridge": "^3",
+    "lesstif/php-jira-rest-client": "^1.10.7",
+    "silex/silex": "^2.2",
+    "php-http/guzzle6-adapter": "^1.1",
+    "knplabs/github-api": "^2.6"
+  },
+  "require-dev": {
+    "heroku/heroku-buildpack-php": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "GithubWebhookJira\\": "src/GithubWebhookJira/"
+    }
+  }
+}

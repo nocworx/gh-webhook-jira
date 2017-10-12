@@ -1,0 +1,6 @@
+{
+  "name": "GitHub Webhook for Jira",
+  "description": "A Webhook processor for doing Jira things",
+  "repository": "https://github.com/laszlof/gh-webhook-jira",
+  "addons": []
+}
