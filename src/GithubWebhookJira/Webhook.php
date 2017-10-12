@@ -1,4 +1,27 @@
 <?php
+/**
+ * MIT License
+ *
+ * Copyright (c) 2017 NocWorx
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 namespace GithubWebhookJira;
 
@@ -36,52 +59,28 @@ class Webhook {
   /** @var string Done Resolution */
   const RESOLUTION_DONE = 'Done';
 
-  /**
-   * Our Silex application
-   * @var \Silex\Application
-   */
+  /** @var \Silex\Application  Our Silex application */
   private $_app;
 
-  /**
-   * Our Request object
-   * @var \Symfony\Component\HttpFoundation\Request
-   */
+  /** @var \Symfony\Component\HttpFoundation\Request Our Request object */
   private $_request;
 
-  /**
-   * Our github client
-   * @var \Github\Client
-   */
+  /** @var \Github\Client Our github client */
   private $_github;
 
-  /**
-   * Jira cloud issue API service
-   * @var \JiraRestApi\Issue\IssueService
-   */
+  /** @var \JiraRestApi\Issue\IssueService Jira cloud issue API service */
   private $_issue;
 
-  /**
-   * The prefix for Jira issues
-   * @var string
-   */
+  /** @var string The prefix for Jira issues */
   private $_issue_prefix;
 
-  /**
-   * Github Webhook Secret
-   * @var string
-   */
+  /** @var string Github Webhook Secret */
   private $_secret = '';
 
-  /**
-   * URL for Jira
-   * @var string
-   */
+  /** @var string URL for Jira */
   private $_jira_url;
 
-  /**
-   * Raw data from hook request
-   * @var string
-   */
+  /** @var string Raw data from hook request */
   private $_raw_data = '';
 
   /**
@@ -124,11 +123,11 @@ class Webhook {
    * @return boolean
    */
   public function isValid() : bool {
-    $event = $this->_request->headers->get('X-Github-Event');
-    $signature = $this->_request->headers->get('X-Hub-Signature');
-    list($algo, $sig) = explode('=', $signature);
-    $hash = hash_hmac($algo, $this->_raw_data, $this->_secret);
-    return $hash === $sig;
+    list($algo, $sig) = explode(
+      '=',
+      $this->_request->headers->get('X-Hub-Signature')
+    );
+    return hash_hmac($algo, $this->_raw_data, $this->_secret) === $sig;
   }
 
   /**
@@ -180,11 +179,11 @@ class Webhook {
       $transition->setTransitionId(self::TRANSITION_PEER_REVIEW);
       $this->_issue->transition($item['key'], $transition);
       $comment = new Comment();
-      $url = $this->_getData()->pull_request->html_url;
-      $repo_name = $this->_getData()->repository->full_name;
-      $number = $this->_getData()->pull_request->number;
-      $msg = "PR Opened: [{$repo_name}#{$number}|$url]";
-      $comment->setBody($msg);
+      $comment->setBody(
+        "PR Opened: [{$this->_getData()->repository->full_name}#" .
+        "{$this->_getData()->pull_request->number}|" .
+        "{$this->_getData()->pull_request->html_url}]"
+      );
       $this->_issue->addComment($item['key'], $comment);
     }
   }
@@ -213,10 +212,6 @@ class Webhook {
    * Update the Jira IDs with URLs in the pull request
    */
   private function _updateUrls() {
-    $body = $this->_getData()->pull_request->body;
-    $user = $this->_getData()->repository->owner->login;
-    $repo = $this->_getData()->repository->name;
-    $number = $this->_getData()->pull_request->number;
     $regex =
       '((?:(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved))' .
       '\s(?!' .
@@ -225,12 +220,19 @@ class Webhook {
       $this->_issue_prefix .
       '-[0-9]+))i';
 
-    $replace = '\\1 [\\2](' . $this->_jira_url . '/browse/\\2)';
-    $body = preg_replace($regex, $replace, $body);
     try {
-      $this->_github->api('pull_request')->update($user, $repo, $number, [
-        'body' => $body
-      ]);
+      $this->_github->api('pull_request')->update(
+        $this->_getData()->repository->owner->login,
+        $this->_getData()->repository->name,
+        $this->_getData()->pull_request->number,
+        [
+          'body' => preg_replace(
+            $regex,
+            '\\1 [\\2](' . $this->_jira_url . '/browse/\\2)',
+            $this->_getData()->pull_request->body
+          )
+        ]
+      );
     } catch (\Throwable $e) {
       $this->_app['monolog']->debug($e->getMessage());
     }
