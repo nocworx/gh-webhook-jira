@@ -13,7 +13,8 @@
   },
   "require-dev": {
     "nocworx/phpcs": "dev-master as 1.0",
-    "heroku/heroku-buildpack-php": "*"
+    "heroku/heroku-buildpack-php": "*",
+    "phan/phan": "^0.10.0"
   },
   "repositories": [
     { "type": "vcs", "url": "https://github.com/nocworx/phpcs" }
