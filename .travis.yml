@@ -1,0 +1,12 @@
+language: php
+php:
+  - 7.1
+before_script:
+  - phpenv config-rm xdebug.ini
+  - pecl install dio-beta
+  - pecl install ast
+  - composer global require hirak/prestissimo
+  - composer install --no-scripts --no-suggest
+script:
+  - vendor/bin/phan
+  - vendor/bin/phpcs --standard=vendor/nocworx/phpcs/ruleset.xml src web
