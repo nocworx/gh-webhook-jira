@@ -180,8 +180,7 @@ class Webhook {
 
     switch ($this->_getData()->action) {
       case self::ACTION_EDITED:
-        $this->_app['monolog']->debug('EDITED');
-        break;
+        /* falls through */
       case self::ACTION_REOPENED:
         /* falls through */
       case self::ACTION_OPENED:
@@ -251,7 +250,7 @@ class Webhook {
 
     $issue_keys = implode('|',
       array_filter($this->_getJiraItems(), function($item) use ($title) {
-        return strpos($item, $title) === false;
+        return strpos($title, $item) === false;
       })
     );
 
