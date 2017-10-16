@@ -198,7 +198,7 @@ class Webhook {
    * Handle opened PR action
    */
   private function _processPullRequestOpen() {
-    $items = $this->_getJiraItems();
+    $items = $this->_getJiraLinks();
     $check = array_filter($items, function($item) {
       return empty($item['url']);
     });
@@ -221,24 +221,19 @@ class Webhook {
    * Handle closed PR action
    */
   private function _processPullRequestClose() {
+    $trans_id = $this->_transition_closed;
+    $fields = $this->_transition_closed_extra;
     if ($this->_getData()->pull_request->merged === true) {
-      foreach ($this->_getJiraItems() as $item) {
-        $transition = new Transition();
-        $transition->setTransitionId($this->_transition_merged);
-        if (! empty($this->_transition_merged_extra)) {
-          $transition->fields = $this->_transition_merged_extra;
-        }
-        $this->_issue->transition($item['key'], $transition);
+      $trans_id = $this->_transition_merged;
+      $fields = $this->_transition_merged_extra;
+    }
+    foreach ($this->_getJiraItems() as $item) {
+      $transition = new Transition();
+      $transition->setTransitionId($trans_id);
+      if (! empty($fields)) {
+        $transition->fields= $fields;
       }
-    } else {
-      foreach ($this->_getJiraItems() as $item) {
-        $transition = new Transition();
-        $transition->setTransitionId($this->_transition_closed);
-        if (! empty($this->_transition_closed_extra)) {
-          $transition->fields = $this->_transition_closed_extra;
-        }
-        $this->_issue->transition($item['key'], $transition);
-      }
+      $this->_issue->transition($item, $transition);
     }
   }
 
@@ -258,11 +253,9 @@ class Webhook {
       $this->_getData()->pull_request->body
     );
 
-    $issue_keys = implode('|', array_map(function($item) {
-      return $item['key'];
-    }, $this->_getJiraItems()));
-
     $title = $this->_getData()->pull_request->title;
+
+    $issue_keys = implode('|', $this->_getJiraItems());
 
     if (! empty($issue_keys)) {
       $title .= " [{$issue_keys}]";
@@ -285,11 +278,11 @@ class Webhook {
   }
 
   /**
-   * Get items from pull request body
+   * Get jira links from pull request body
    *
    * @return array
    */
-  private function _getJiraItems() : array {
+  private function _getJiraLinks() : array {
     $matches = [];
     preg_match_all(
       $this->_getIssueRegex(),
@@ -297,13 +290,31 @@ class Webhook {
       $matches,
       PREG_SET_ORDER
     );
-    $this->_app['monolog']->debug(var_export($matches, true));
     return array_map(function($item) {
       return [
         'key' => $item[2],
         'url' => $item[1]
       ];
     }, $matches);
+  }
+
+  /**
+   * Get a list of Jira IDs within pull request body
+   *
+   * @return array
+   */
+  private function _getJiraItems() : array {
+    $matches = [];
+    preg_match_all(
+      '(' .
+      preg_quote($this->_issue_prefix) .
+      '-[0-9]+)' .
+      ')i',
+      $str,
+      $matches
+    );
+
+    return array_unique($matches[0], SORT_STRING);
   }
 
   /**
