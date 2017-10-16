@@ -306,11 +306,10 @@ class Webhook {
   private function _getJiraItems() : array {
     $matches = [];
     preg_match_all(
-      '(' .
+      '((' .
       preg_quote($this->_issue_prefix) .
-      '-[0-9]+)' .
-      ')i',
-      $str,
+      '-[0-9]+))i',
+      $this->_getData()->pull_request->body,
       $matches
     );
 
