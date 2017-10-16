@@ -250,7 +250,7 @@ class Webhook {
 
     $issue_keys = implode('|',
       array_filter($this->_getJiraItems(), function($item) {
-        return str_pos($item, $title) === false;
+        return strpos($item, $title) === false;
       })
     );
 
