@@ -207,7 +207,7 @@ class Webhook {
       $this->_updatePullRequest();
     }
 
-    foreach ($items as $item) {
+    foreach ($this->_getJiraItems() as $item) {
       $transition = new Transition();
       $transition->setTransitionId($this->_transition_opened);
       if (! empty($this->_transition_opened_extra)) {
