@@ -3,7 +3,7 @@
   "description": "A Github webhook handler for transitioning Jira Issues",
   "license": "MIT",
   "require" : {
-    "php": "^7.0",
+    "php": "^7.1",
     "monolog/monolog": "^1.22",
     "symfony/twig-bridge": "^3",
     "lesstif/php-jira-rest-client": "^1.10.7",
@@ -13,15 +13,14 @@
   },
   "require-dev": {
     "nocworx/phpcs": "dev-master as 1.0",
-    "heroku/heroku-buildpack-php": "*",
-    "phan/phan": "^0.10.0"
+    "heroku/heroku-buildpack-php": "*"
   },
   "repositories": [
     { "type": "vcs", "url": "https://github.com/nocworx/phpcs" }
   ],
   "autoload": {
     "psr-4": {
-      "GithubWebhookJira\\": "src/GithubWebhookJira/"
+      "Nexcess\\GithubWebhookJira\\": "src/Nexcess/GithubWebhookJira/"
     }
   }
 }

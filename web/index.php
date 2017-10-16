@@ -23,14 +23,14 @@
  * IN THE SOFTWARE.
  */
 
-namespace GithubWebhookJira;
+namespace Nexcess\GithubWebhookJira;
 
 require_once '../vendor/autoload.php';
 
 use \Symfony\Component\HttpFoundation\Request;
 use \Silex\Application;
 use \Silex\Provider\MonologServiceProvider;
-use \GithubWebhookJira\Webhook;
+use \NocWorx\GithubWebhookJira\Webhook;
 
 $app = new Application();
 $app['debug'] = (getenv('DEBUG') === 'true');

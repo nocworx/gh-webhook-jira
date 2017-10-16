@@ -23,11 +23,11 @@
  * IN THE SOFTWARE.
  */
 
-namespace GithubWebhookJira;
+namespace Nexcess\GithubWebhookJira;
 
 use \Symfony\Component\HttpFoundation\Request;
 use \Silex\Application;
-use \Github\Client as Client;
+use \Github\Client;
 use \JiraRestApi\Configuration\ArrayConfiguration;
 use \JiraRestApi\Issue\IssueService;
 use \JiraRestApi\Issue\Comment;
@@ -46,18 +46,6 @@ class Webhook {
 
   /** @var string 'closed' Action */
   const ACTION_CLOSED = 'closed';
-
-  /** @var int In Progress -> Peer Review Transition */
-  const TRANSITION_PEER_REVIEW = 61;
-
-  /** @var int Peer Review -> Done Transition */
-  const TRANSITION_DONE = 91;
-
-  /** @var int Peer Review -> Review Rejected Transition */
-  const TRANSITION_REVIEW_REJECTED = 121;
-
-  /** @var string Done Resolution */
-  const RESOLUTION_DONE = 'Done';
 
   /** @var \Silex\Application  Our Silex application */
   private $_app;
@@ -83,6 +71,24 @@ class Webhook {
   /** @var string Raw data from hook request */
   private $_raw_data = '';
 
+  /** @var int Transition ID to use for Opened PRs */
+  private $_transition_opened = 0;
+
+  /** @var int Transition ID to use for Closed PRs */
+  private $_transition_closed = 0;
+
+  /** @var int Transition ID to use for Merged PRs */
+  private $_transition_merged = 0;
+
+  /** @var array Extra fields to pass to transition for Opened PRs */
+  private $_transition_opened_extra = [];
+
+  /** @var array Extra fields to pass to transition for Closed PRs */
+  private $_transition_closed_extra = [];
+
+  /** @var array Extra fields to pass to transition for Merged PRs */
+  private $_transition_merged_extra = [];
+
   /**
    * Construct this object
    *
@@ -96,6 +102,30 @@ class Webhook {
     $this->_secret = getenv('SECRET');
     $this->_issue_prefix = getenv('JIRA_ISSUE_PREFIX');
     $this->_jira_url = getenv('JIRA_URL');
+    $this->_transition_opened = (int) getenv('JIRA_TRANSITION_OPENED');
+    $this->_transition_closed = (int) getenv('JIRA_TRANSITION_CLOSED');
+    $this->_transition_merged = (int) getenv('JIRA_TRANSITION_MERGED');
+
+    if (! empty(getenv('JIRA_TRANSITION_OPENED_EXTRA'))) {
+      $this->_transition_opened_extra = json_decode(
+        getenv('JIRA_TRANSITION_OPENED_EXTRA'),
+        true
+      );
+    }
+
+    if (! empty(getenv('JIRA_TRANSITION_CLOSED_EXTRA'))) {
+      $this->_transition_closed_extra = json_decode(
+        getenv('JIRA_TRANSITION_CLOSED_EXTRA'),
+        true
+      );
+    }
+
+    if (! empty(getenv('JIRA_TRANSITION_MERGED_EXTRA'))) {
+      $this->_transition_merged_extra = json_decode(
+        getenv('JIRA_TRANSITION_MERGED_EXTRA'),
+        true
+      );
+    }
 
     // Setup Github API
     $this->_github = new Client();
@@ -144,6 +174,10 @@ class Webhook {
    * @return void
    */
   public function process() {
+    if (! isset($this->_getData()->pull_request)) {
+      return;
+    }
+
     switch ($this->_getData()->action) {
       case self::ACTION_REOPENED:
         /* falls through */
@@ -169,13 +203,16 @@ class Webhook {
       return empty($item['url']);
     });
 
-    if ( !empty($check)) {
+    if (! empty($check)) {
       $this->_updateUrls($check);
     }
 
     foreach ($items as $item) {
       $transition = new Transition();
-      $transition->setTransitionId(self::TRANSITION_PEER_REVIEW);
+      $transition->setTransitionId($this->_transition_opened);
+      if (! empty($this->_transition_opened_extra)) {
+        $transition->fields = $this->_transition_opened_extra;
+      }
       $this->_issue->transition($item['key'], $transition);
       $comment = new Comment();
       $comment->setBody(
@@ -194,14 +231,19 @@ class Webhook {
     if ($this->_getData()->pull_request->merged === true) {
       foreach ($this->_getJiraItems() as $item) {
         $transition = new Transition();
-        $transition->fields['resolution'] = ['name' => self::RESOLUTION_DONE];
-        $transition->setTransitionId(self::TRANSITION_DONE);
+        $transition->setTransitionId($this->_transition_merged);
+        if (! empty($this->_transition_merged_extra)) {
+          $transition->fields = $this->_transition_merged_extra;
+        }
         $this->_issue->transition($item['key'], $transition);
       }
     } else {
       foreach ($this->_getJiraItems() as $item) {
         $transition = new Transition();
-        $transition->setTransitionId(self::TRANSITION_REVIEW_REJECTED);
+        $transition->setTransitionId($this->_transition_closed);
+        if (! empty($this->_transition_closed_extra)) {
+          $transition->fields = $this->_transition_closed_extra;
+        }
         $this->_issue->transition($item['key'], $transition);
       }
     }
@@ -213,24 +255,26 @@ class Webhook {
   private function _updateUrls() {
     $regex =
       '((?:(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved))' .
-      '\s(?!' .
-      $this->_jira_url .
-      ')?(' .
-      $this->_issue_prefix .
+      '\s(' .
+      preg_quote($this->_issue_prefix) .
       '-[0-9]+))i';
+
+    $body = preg_replace(
+      $regex,
+      '\\1 [\\2](' . $this->_jira_url . '/browse/\\2)',
+      $this->_getData()->pull_request->body
+    );
+
+    if ($body === $this->_getData()->pull_request->body) {
+      return;
+    }
 
     try {
       $this->_github->api('pull_request')->update(
         $this->_getData()->repository->owner->login,
         $this->_getData()->repository->name,
         $this->_getData()->pull_request->number,
-        [
-          'body' => preg_replace(
-            $regex,
-            '\\1 [\\2](' . $this->_jira_url . '/browse/\\2)',
-            $this->_getData()->pull_request->body
-          )
-        ]
+        ['body' => $body]
       );
     } catch (\Throwable $e) {
       $this->_app['monolog']->debug($e->getMessage());
@@ -268,8 +312,9 @@ class Webhook {
     return
       '((?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)' .
       '\s(?:(' .
-      $this->_jira_url . '/browse/))?(' .
-      $this->_issue_prefix .
+      preg_quote($this->_jira_url) .
+      '/browse/))?(' .
+      preg_quote($this->_issue_prefix) .
       '-[0-9]+))i';
   }
 
