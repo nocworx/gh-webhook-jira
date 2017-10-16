@@ -234,6 +234,7 @@ class Webhook {
    * Update the Pull request with Jira IDs as URLs and tagging in title
    */
   private function _updatePullRequest() {
+    return;
     $regex =
       '((?:(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved))' .
       '\s(' .
