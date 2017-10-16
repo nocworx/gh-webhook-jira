@@ -30,7 +30,6 @@ require_once '../vendor/autoload.php';
 use \Symfony\Component\HttpFoundation\Request;
 use \Silex\Application;
 use \Silex\Provider\MonologServiceProvider;
-use \NocWorx\GithubWebhookJira\Webhook;
 
 $app = new Application();
 $app['debug'] = (getenv('DEBUG') === 'true');
