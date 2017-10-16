@@ -204,7 +204,7 @@ class Webhook {
     });
 
     if (! empty($check)) {
-      $this->_updateBody();
+      $this->_updatePullRequest();
     }
 
     foreach ($items as $item) {
@@ -214,13 +214,6 @@ class Webhook {
         $transition->fields = $this->_transition_opened_extra;
       }
       $this->_issue->transition($item['key'], $transition);
-      $comment = new Comment();
-      $comment->setBody(
-        "PR Opened: [{$this->_getData()->repository->full_name}#" .
-        "{$this->_getData()->pull_request->number}|" .
-        "{$this->_getData()->pull_request->html_url}]"
-      );
-      $this->_issue->addComment($item['key'], $comment);
     }
   }
 
@@ -250,9 +243,9 @@ class Webhook {
   }
 
   /**
-   * Update the Pull request body with Jira IDs as URLs and tagging
+   * Update the Pull request with Jira IDs as URLs and tagging in title
    */
-  private function _updateBody() {
+  private function _updatePullRequest() {
     $regex =
       '((?:(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved))' .
       '\s(' .
@@ -269,8 +262,10 @@ class Webhook {
       return $item['key'];
     }, $this->_getJiraItems()));
 
+    $title = $this->_getData()->pull_request->title;
+
     if (! empty($issue_keys)) {
-      $body = "[{$issue_keys}]\n\n{$body}";
+      $title .= " [{$issue_keys}]";
     }
 
     if ($body === $this->_getData()->pull_request->body) {
@@ -282,7 +277,7 @@ class Webhook {
         $this->_getData()->repository->owner->login,
         $this->_getData()->repository->name,
         $this->_getData()->pull_request->number,
-        ['body' => $body]
+        ['body' => $body, 'title' => $title]
       );
     } catch (\Throwable $e) {
       $this->_app['monolog']->debug($e->getMessage());
@@ -302,7 +297,7 @@ class Webhook {
       $matches,
       PREG_SET_ORDER
     );
-
+    $this->_app['monolog']->debug(var_export($matches, true));
     return array_map(function($item) {
       return [
         'key' => $item[2],
