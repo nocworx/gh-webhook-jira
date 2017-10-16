@@ -204,7 +204,7 @@ class Webhook {
     });
 
     if (! empty($check)) {
-      $this->_updateUrls($check);
+      $this->_updateBody();
     }
 
     foreach ($items as $item) {
@@ -250,9 +250,9 @@ class Webhook {
   }
 
   /**
-   * Update the Jira IDs with URLs in the pull request
+   * Update the Pull request body with Jira IDs as URLs and tagging
    */
-  private function _updateUrls() {
+  private function _updateBody() {
     $regex =
       '((?:(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved))' .
       '\s(' .
@@ -264,6 +264,14 @@ class Webhook {
       '\\1 [\\2](' . $this->_jira_url . '/browse/\\2)',
       $this->_getData()->pull_request->body
     );
+
+    $issue_keys = implode('|', array_map(function($item) {
+      return $item['key'];
+    }, $this->_getJiraItems()));
+
+    if (! empty($issue_keys)) {
+      $body = "[{$issue_keys}]\n\n{$body}";
+    }
 
     if ($body === $this->_getData()->pull_request->body) {
       return;
