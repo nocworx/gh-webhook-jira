@@ -198,14 +198,7 @@ class Webhook {
    * Handle opened PR action
    */
   private function _processPullRequestOpen() {
-    $items = $this->_getJiraLinks();
-    $check = array_filter($items, function($item) {
-      return empty($item['url']);
-    });
-
-    if (! empty($check)) {
-      $this->_updatePullRequest();
-    }
+    $this->_updatePullRequest();
 
     foreach ($this->_getJiraItems() as $item) {
       $transition = new Transition();
@@ -213,7 +206,7 @@ class Webhook {
       if (! empty($this->_transition_opened_extra)) {
         $transition->fields = $this->_transition_opened_extra;
       }
-      $this->_issue->transition($item['key'], $transition);
+      $this->_issue->transition($item, $transition);
     }
   }
 
@@ -255,13 +248,20 @@ class Webhook {
 
     $title = $this->_getData()->pull_request->title;
 
-    $issue_keys = implode('|', $this->_getJiraItems());
+    $issue_keys = implode('|',
+      array_filter($this->_getJiraItems(), function($item) {
+        return str_pos($item, $title) === false;
+      })
+    );
 
     if (! empty($issue_keys)) {
       $title .= " [{$issue_keys}]";
     }
 
-    if ($body === $this->_getData()->pull_request->body) {
+    if (
+      $body === $this->_getData()->pull_request->body &&
+      $title === $this->_getData()->pull_request->title
+    ) {
       return;
     }
 
