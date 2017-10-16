@@ -206,7 +206,11 @@ class Webhook {
       if (! empty($this->_transition_opened_extra)) {
         $transition->fields = $this->_transition_opened_extra;
       }
-      $this->_issue->transition($item, $transition);
+      try {
+        $this->_issue->transition($item, $transition);
+      } catch (\Throwable $e) {
+        // Dont care
+      }
     }
   }
 
@@ -257,10 +261,7 @@ class Webhook {
     if (! empty($issue_keys)) {
       $title .= " [{$issue_keys}]";
     }
-    $this->_app['monolog']->debug('BODY: ' . $body);
-    $this->_app['monolog']->debug('BODY2: ' . $this->_getData()->pull_request->body);
-    $this->_app['monolog']->debug('TITLE: ' . $title);
-    $this->_app['monolog']->debug('TITLE2: ' . $this->_getData()->pull_request->title);
+
     if (
       $body === $this->_getData()->pull_request->body &&
       $title === $this->_getData()->pull_request->title
