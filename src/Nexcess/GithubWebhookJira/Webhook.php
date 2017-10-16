@@ -249,7 +249,7 @@ class Webhook {
     $title = $this->_getData()->pull_request->title;
 
     $issue_keys = implode('|',
-      array_filter($this->_getJiraItems(), function($item) {
+      array_filter($this->_getJiraItems(), function($item) use ($title) {
         return strpos($item, $title) === false;
       })
     );
