@@ -179,9 +179,10 @@ class Webhook {
     }
 
     switch ($this->_getData()->action) {
-      case self::ACTION_REOPENED:
-        /* falls through */
       case self::ACTION_EDITED:
+        $this->_app['monolog']->debug('EDITED');
+        break;
+      case self::ACTION_REOPENED:
         /* falls through */
       case self::ACTION_OPENED:
         $this->_processPullRequestOpen();
@@ -257,7 +258,10 @@ class Webhook {
     if (! empty($issue_keys)) {
       $title .= " [{$issue_keys}]";
     }
-
+    $this->_app['monolog']->debug('BODY: ' . $body);
+    $this->_app['monolog']->debug('BODY2: ' . $this->_getData()->pull_request->body);
+    $this->_app['monolog']->debug('TITLE: ' . $title);
+    $this->_app['monolog']->debug('TITLE2: ' . $this->_getData()->pull_request->title);
     if (
       $body === $this->_getData()->pull_request->body &&
       $title === $this->_getData()->pull_request->title
