@@ -199,8 +199,11 @@ class Webhook {
       if (! empty($fields)) {
         $transition->fields = $fields;
       }
-
-      $this->_issue->transition($item, $transition);
+      try {
+        $this->_issue->transition($item, $transition);
+      } catch (\Throwable $e) {
+        // Dont care
+      }
     }
   }
 
