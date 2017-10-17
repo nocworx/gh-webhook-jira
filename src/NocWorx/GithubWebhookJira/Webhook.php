@@ -202,7 +202,9 @@ class Webhook {
       try {
         $this->_issue->transition($item, $transition);
       } catch (\Throwable $e) {
-        // Dont care
+        if ($this->_app['debug']) {
+          $this->_app['monolog']->debug($e->getMessage());
+        }
       }
     }
   }
@@ -250,7 +252,9 @@ class Webhook {
         ['body' => $body, 'title' => $title]
       );
     } catch (\Throwable $e) {
-      $this->_app['monolog']->debug($e->getMessage());
+      if ($this->_app['debug']) {
+        $this->_app['monolog']->debug($e->getMessage());
+      }
     }
   }
 
