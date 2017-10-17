@@ -23,7 +23,7 @@
  * IN THE SOFTWARE.
  */
 
-namespace Nexcess\GithubWebhookJira;
+namespace NocWorx\GithubWebhookJira;
 
 require_once '../vendor/autoload.php';
 
@@ -39,9 +39,32 @@ $app->register(new MonologServiceProvider(), array(
   'monolog.logfile' => 'php://stderr',
 ));
 
+$config = [
+  'secret' => getenv('SECRET'),
+  'api_token' => getenv('GITHUB_API_TOKEN'),
+  'jira_url' => getenv('JIRA_URL'),
+  'jira_username' => getenv('JIRA_USERNAME'),
+  'jira_password' => getenv('JIRA_PASSWORD'),
+  'issue_prefix' => getenv('JIRA_ISSUE_PREFIX'),
+  'transition' => [
+    'opened' => [
+      'id' => getenv('JIRA_TRANSITION_OPENED'),
+      'fields' => json_encode(getenv('JIRA_TRANSITION_OPENED_FIELDS'), true)
+    ],
+    'closed' => [
+      'id' => getenv('JIRA_TRANSITION_CLOSED'),
+      'fields' => json_encode(getenv('JIRA_TRANSITION_CLOSED_FIELDS'), true)
+    ],
+    'merged' => [
+      'id' => getenv('JIRA_TRANSITION_MERGED'),
+      'fields' => json_encode(getenv('JIRA_TRANSITION_MERGED_FIELDS'), true)
+    ]
+  ]
+];
+
 // Handle the post request
-$app->post('/', function(Request $request) use ($app) {
-  $hook = new Webhook($app, $request);
+$app->post('/', function(Request $request) use ($app, $config) {
+  $hook = new Webhook($app, $request, $config);
   if ($hook->isValid()) {
     $hook->process();
   }

@@ -23,7 +23,7 @@
  * IN THE SOFTWARE.
  */
 
-namespace Nexcess\GithubWebhookJira;
+namespace NocWorx\GithubWebhookJira;
 
 use \Symfony\Component\HttpFoundation\Request;
 use \Silex\Application;
@@ -44,8 +44,17 @@ class Webhook {
   /** @var string 'edited' Action */
   const ACTION_EDITED = 'edited';
 
+  /** @var string 'merged' meta action */
+  const ACTION_MERGED = 'merged';
+
   /** @var string 'closed' Action */
   const ACTION_CLOSED = 'closed';
+
+  /** @var string 'open' pull request */
+  const PR_STATE_OPEN = 'open';
+
+  /** @var string 'closed' pull request */
+  const PR_STATE_CLOSED = 'closed';
 
   /** @var \Silex\Application  Our Silex application */
   private $_app;
@@ -59,86 +68,40 @@ class Webhook {
   /** @var \JiraRestApi\Issue\IssueService Jira cloud issue API service */
   private $_issue;
 
-  /** @var string The prefix for Jira issues */
-  private $_issue_prefix;
-
-  /** @var string Github Webhook Secret */
-  private $_secret = '';
-
-  /** @var string URL for Jira */
-  private $_jira_url;
-
   /** @var string Raw data from hook request */
   private $_raw_data = '';
 
-  /** @var int Transition ID to use for Opened PRs */
-  private $_transition_opened = 0;
-
-  /** @var int Transition ID to use for Closed PRs */
-  private $_transition_closed = 0;
-
-  /** @var int Transition ID to use for Merged PRs */
-  private $_transition_merged = 0;
-
-  /** @var array Extra fields to pass to transition for Opened PRs */
-  private $_transition_opened_extra = [];
-
-  /** @var array Extra fields to pass to transition for Closed PRs */
-  private $_transition_closed_extra = [];
-
-  /** @var array Extra fields to pass to transition for Merged PRs */
-  private $_transition_merged_extra = [];
+  /** @var array Configuration array */
+  private $_config = [];
 
   /**
    * Construct this object
    *
    * @param \Silex\Application $app
    * @param \Symfony\Component\HttpFoundation\Request $request
+   * @param array $config
    */
-  public function __construct(Application $app, Request $request) {
+  public function __construct(
+    Application $app,
+    Request $request,
+    array $config
+  ) {
     $this->_app = $app;
     $this->_request = $request;
-
-    $this->_secret = getenv('SECRET');
-    $this->_issue_prefix = getenv('JIRA_ISSUE_PREFIX');
-    $this->_jira_url = getenv('JIRA_URL');
-    $this->_transition_opened = (int) getenv('JIRA_TRANSITION_OPENED');
-    $this->_transition_closed = (int) getenv('JIRA_TRANSITION_CLOSED');
-    $this->_transition_merged = (int) getenv('JIRA_TRANSITION_MERGED');
-
-    if (! empty(getenv('JIRA_TRANSITION_OPENED_EXTRA'))) {
-      $this->_transition_opened_extra = json_decode(
-        getenv('JIRA_TRANSITION_OPENED_EXTRA'),
-        true
-      );
-    }
-
-    if (! empty(getenv('JIRA_TRANSITION_CLOSED_EXTRA'))) {
-      $this->_transition_closed_extra = json_decode(
-        getenv('JIRA_TRANSITION_CLOSED_EXTRA'),
-        true
-      );
-    }
-
-    if (! empty(getenv('JIRA_TRANSITION_MERGED_EXTRA'))) {
-      $this->_transition_merged_extra = json_decode(
-        getenv('JIRA_TRANSITION_MERGED_EXTRA'),
-        true
-      );
-    }
+    $this->_config = $config;
 
     // Setup Github API
     $this->_github = new Client();
     $this->_github->authenticate(
-      getenv('GITHUB_API_TOKEN'),
+      $this->_config['api_token'],
       Client::AUTH_HTTP_TOKEN
     );
 
     // Setup Jira API
     $config = new ArrayConfiguration([
-      'jiraHost' => $this->_jira_url,
-      'jiraUser' => getenv('JIRA_USERNAME'),
-      'jiraPassword' => getenv('JIRA_PASSWORD'),
+      'jiraHost' => $this->_config['jira_url'],
+      'jiraUser' => $this->_config['jira_username'],
+      'jiraPassword' => $this->_config['jira_password'],
       'jiraLogLevel' => 'EMERGENCY',
     ]);
     $this->_issue = new IssueService($config);
@@ -156,7 +119,11 @@ class Webhook {
       '=',
       $this->_request->headers->get('X-Hub-Signature')
     );
-    return hash_hmac($algo, $this->_raw_data, $this->_secret) === $sig;
+    return hash_hmac(
+      $algo,
+      $this->_raw_data,
+      $this->_config['secret']
+    ) === $sig;
   }
 
   /**
@@ -180,14 +147,19 @@ class Webhook {
 
     switch ($this->_getData()->action) {
       case self::ACTION_EDITED:
-        /* falls through */
+        $this->_processPullRequestEdit();
+        break;
       case self::ACTION_REOPENED:
         /* falls through */
       case self::ACTION_OPENED:
-        $this->_processPullRequestOpen();
+        $this->_updatePullRequest();
+        $this->_transitionIssues(self::ACTION_OPENED);
         break;
       case self::ACTION_CLOSED:
-        $this->_processPullRequestClose();
+        $action = ($this->_getData()->pull_request->merged) ?
+          self::ACTION_MERGED :
+          self::ACTION_CLOSED;
+        $this->_transitionIssues($action);
         break;
       default:
         // do nothing
@@ -195,41 +167,39 @@ class Webhook {
   }
 
   /**
-   * Handle opened PR action
+   * Handle edited PR action
    */
-  private function _processPullRequestOpen() {
+  private function _processPullRequestEdit() {
     $this->_updatePullRequest();
 
-    foreach ($this->_getJiraItems() as $item) {
-      $transition = new Transition();
-      $transition->setTransitionId($this->_transition_opened);
-      if (! empty($this->_transition_opened_extra)) {
-        $transition->fields = $this->_transition_opened_extra;
-      }
-      try {
-        $this->_issue->transition($item, $transition);
-      } catch (\Throwable $e) {
-        // Dont care
-      }
+    switch ($this->_getData()->pull_request->state) {
+      case self::PR_STATE_OPEN:
+        $action = ($this->_getData()->pull_request->merged) ?
+          self::ACTION_MERGED :
+          self::ACTION_CLOSED;
+        $this->_transitionIssues($action);
+        break;
+      case self::PR_STATE_CLOSED:
+        $this->_transitionIssues(self::ACTION_CLOSED);
+        break;
     }
   }
 
   /**
-   * Handle closed PR action
+   * Perform a transition on jira issues
+   *
+   * @param string $action The action to perform the transition on
    */
-  private function _processPullRequestClose() {
-    $trans_id = $this->_transition_closed;
-    $fields = $this->_transition_closed_extra;
-    if ($this->_getData()->pull_request->merged === true) {
-      $trans_id = $this->_transition_merged;
-      $fields = $this->_transition_merged_extra;
-    }
+  private function _transitionIssues(string $action) {
+    $trans_id = $this->_config['transition'][$action]['id'];
+    $fields = $this->_config['transition'][$action]['fields'];
     foreach ($this->_getJiraItems() as $item) {
       $transition = new Transition();
       $transition->setTransitionId($trans_id);
       if (! empty($fields)) {
-        $transition->fields= $fields;
+        $transition->fields = $fields;
       }
+
       $this->_issue->transition($item, $transition);
     }
   }
@@ -241,12 +211,12 @@ class Webhook {
     $regex =
       '((?:(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved))' .
       '\s(' .
-      preg_quote($this->_issue_prefix) .
+      preg_quote($this->_config['issue_prefix']) .
       '-[0-9]+))i';
 
     $body = preg_replace(
       $regex,
-      '\\1 [\\2](' . $this->_jira_url . '/browse/\\2)',
+      '\\1 [\\2](' . $this->_config['jira_url'] . '/browse/\\2)',
       $this->_getData()->pull_request->body
     );
 
@@ -311,7 +281,7 @@ class Webhook {
     $matches = [];
     preg_match_all(
       '((' .
-      preg_quote($this->_issue_prefix) .
+      preg_quote($this->_config['issue_prefix']) .
       '-[0-9]+))i',
       $this->_getData()->pull_request->body,
       $matches
@@ -329,9 +299,9 @@ class Webhook {
     return
       '((?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)' .
       '\s(?:(' .
-      preg_quote($this->_jira_url) .
+      preg_quote($this->_config['jira_url']) .
       '/browse/))?(' .
-      preg_quote($this->_issue_prefix) .
+      preg_quote($this->_config['issue_prefix']) .
       '-[0-9]+))i';
   }
 

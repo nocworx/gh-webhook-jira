@@ -20,7 +20,7 @@
   ],
   "autoload": {
     "psr-4": {
-      "Nexcess\\GithubWebhookJira\\": "src/Nexcess/GithubWebhookJira/"
+      "NocWorx\\GithubWebhookJira\\": "src/NocWorx/GithubWebhookJira/"
     }
   }
 }
