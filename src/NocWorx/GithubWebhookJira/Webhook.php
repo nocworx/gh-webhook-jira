@@ -203,6 +203,12 @@ class Webhook {
         $this->_issue->transition($item, $transition);
       } catch (\Throwable $e) {
         if ($this->_app['debug']) {
+          $this->_app['monolog']->debug(
+            'FAILED TO TRANSITION: ID:' .
+            $trans_id .
+            ' FIELDS: ' .
+            var_export($fields, true)
+          );
           $this->_app['monolog']->debug($e->getMessage());
         }
       }
@@ -253,6 +259,7 @@ class Webhook {
       );
     } catch (\Throwable $e) {
       if ($this->_app['debug']) {
+        $this->_app['monolog']->debug('FAILED TO UPDATE PR');
         $this->_app['monolog']->debug($e->getMessage());
       }
     }
