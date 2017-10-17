@@ -48,16 +48,25 @@ $config = [
   'issue_prefix' => getenv('JIRA_ISSUE_PREFIX'),
   'transition' => [
     'opened' => [
-      'id' => getenv('JIRA_TRANSITION_OPENED'),
-      'fields' => json_encode(getenv('JIRA_TRANSITION_OPENED_FIELDS'), true)
+      'id' => filter_var(
+        getenv('JIRA_TRANSITION_OPENED'),
+        FILTER_VALIDATE_INT
+      ),
+      'fields' => json_decode(getenv('JIRA_TRANSITION_OPENED_FIELDS'), true)
     ],
     'closed' => [
-      'id' => getenv('JIRA_TRANSITION_CLOSED'),
-      'fields' => json_encode(getenv('JIRA_TRANSITION_CLOSED_FIELDS'), true)
+      'id' => filter_var(
+        getenv('JIRA_TRANSITION_CLOSED'),
+        FILTER_VALIDATE_INT
+      ),
+      'fields' => json_decode(getenv('JIRA_TRANSITION_CLOSED_FIELDS'), true)
     ],
     'merged' => [
-      'id' => getenv('JIRA_TRANSITION_MERGED'),
-      'fields' => json_encode(getenv('JIRA_TRANSITION_MERGED_FIELDS'), true)
+      'id' => filter_var(
+        getenv('JIRA_TRANSITION_MERGED'),
+        FILTER_VALIDATE_INT
+      ),
+      'fields' => json_decode(getenv('JIRA_TRANSITION_MERGED_FIELDS'), true)
     ]
   ]
 ];
