@@ -35,9 +35,10 @@ $app = new Application();
 $app['debug'] = (getenv('DEBUG') === 'true');
 
 // Register the monolog logging service
-$app->register(new MonologServiceProvider(), array(
-  'monolog.logfile' => 'php://stderr',
-));
+$app->register(
+  new MonologServiceProvider(),
+  ['monolog.logfile' => 'php://stderr']
+);
 
 $config = [
   'secret' => getenv('SECRET'),
@@ -62,10 +63,7 @@ $config = [
       'fields' => json_decode(getenv('JIRA_TRANSITION_CLOSED_FIELDS'), true)
     ],
     'merged' => [
-      'id' => filter_var(
-        getenv('JIRA_TRANSITION_MERGED'),
-        FILTER_VALIDATE_INT
-      ),
+      'id' => filter_var(getenv('JIRA_TRANSITION_MERGED'),FILTER_VALIDATE_INT),
       'fields' => json_decode(getenv('JIRA_TRANSITION_MERGED_FIELDS'), true)
     ]
   ]

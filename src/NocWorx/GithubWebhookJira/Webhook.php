@@ -33,6 +33,9 @@ use \JiraRestApi\Issue\IssueService;
 use \JiraRestApi\Issue\Comment;
 use \JiraRestApi\Issue\Transition;
 
+/**
+ * Github Webhook class
+ */
 class Webhook {
 
   /** @var string 'opened' Action */
@@ -150,7 +153,7 @@ class Webhook {
         $this->_processPullRequestEdit();
         break;
       case self::ACTION_REOPENED:
-        /* falls through */
+        // falls through
       case self::ACTION_OPENED:
         $this->_updatePullRequest();
         $this->_transitionIssues(self::ACTION_OPENED);
@@ -233,7 +236,8 @@ class Webhook {
 
     $title = $this->_getData()->pull_request->title;
 
-    $issue_keys = implode('|',
+    $issue_keys = implode(
+      '|',
       array_filter($this->_getJiraItems(), function($item) use ($title) {
         return strpos($title, $item) === false;
       })
