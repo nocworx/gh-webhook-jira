@@ -182,7 +182,7 @@ class Webhook {
       case self::PR_STATE_CLOSED:
         $action = ($this->_getData()->pull_request->merged) ?
           self::ACTION_MERGED :
-          self::ACTION_OPENED;
+          self::ACTION_CLOSED;
         $this->_transitionIssues($action);
         break;
     }
