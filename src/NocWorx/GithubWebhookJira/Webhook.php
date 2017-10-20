@@ -196,16 +196,14 @@ class Webhook {
   private function _transitionIssues(string $action) {
     $trans_id = $this->_config['transition'][$action]['id'];
     $fields = $this->_config['transition'][$action]['fields'];
-    $this->_app['monolog']->debug('ACTION: ' . $action);
-    foreach ($this->_getJiraLinks() as $item) {
-      $this->_app['monolog']->debug($item);
+    foreach ($this->_getTransitionKeys() as $item) {
       $transition = new Transition();
       $transition->setTransitionId($trans_id);
       if (! empty($fields)) {
         $transition->fields = $fields;
       }
       try {
-        $this->_issue->transition($item['key'], $transition);
+        $this->_issue->transition($item, $transition);
       } catch (\Throwable $e) {
         if ($this->_app['debug']) {
           $this->_app['monolog']->debug(
@@ -269,11 +267,11 @@ class Webhook {
   }
 
   /**
-   * Get jira links from pull request body
+   * Get jira issues to transition from PR body
    *
    * @return array
    */
-  private function _getJiraLinks() : array {
+  private function _getTransitionKeys() : array {
     $matches = [];
     preg_match_all(
       $this->_getIssueRegex(),
@@ -282,10 +280,7 @@ class Webhook {
       PREG_SET_ORDER
     );
     return array_map(function($item) {
-      return [
-        'key' => $item[2],
-        'url' => $item[1]
-      ];
+      return $item[2];
     }, $matches);
   }
 
@@ -315,9 +310,9 @@ class Webhook {
       '((?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)' .
       '\s(?:(' .
       preg_quote($this->_config['jira_url']) .
-      '/browse/))?(' .
+      '/browse/))?\[?(' .
       preg_quote($this->_config['issue_prefix']) .
-      '-[0-9]+))i';
+      '-[0-9]+)\]?)i';
   }
 
 }
