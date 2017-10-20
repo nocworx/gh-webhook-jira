@@ -196,14 +196,14 @@ class Webhook {
   private function _transitionIssues(string $action) {
     $trans_id = $this->_config['transition'][$action]['id'];
     $fields = $this->_config['transition'][$action]['fields'];
-    foreach ($this->_getJiraItems() as $item) {
+    foreach ($this->_getJiraLinks() as $item) {
       $transition = new Transition();
       $transition->setTransitionId($trans_id);
       if (! empty($fields)) {
         $transition->fields = $fields;
       }
       try {
-        $this->_issue->transition($item, $transition);
+        $this->_issue->transition($item['key'], $transition);
       } catch (\Throwable $e) {
         if ($this->_app['debug']) {
           $this->_app['monolog']->debug(
