@@ -223,14 +223,11 @@ class Webhook {
    */
   private function _updatePullRequest() {
     $regex =
-      '((?:(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved))' .
-      '\s(' .
-      preg_quote($this->_config['issue_prefix']) .
-      '-[0-9]+))i';
+      '((\s|^)(' . preg_quote($this->_config['issue_prefix']) . '-[0-9]+))i';
 
     $body = preg_replace(
       $regex,
-      '\\1 [\\2](' . $this->_config['jira_url'] . '/browse/\\2)',
+      '\\1[\\2](' . $this->_config['jira_url'] . '/browse/\\2)',
       $this->_getData()->pull_request->body
     );
 
