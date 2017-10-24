@@ -3,7 +3,7 @@
   "description": "A Github webhook handler for transitioning Jira Issues",
   "license": "MIT",
   "require" : {
-    "php": "^7.0",
+    "php": "^7.1",
     "monolog/monolog": "^1.22",
     "symfony/twig-bridge": "^3",
     "lesstif/php-jira-rest-client": "^1.10.7",
@@ -21,7 +21,7 @@
   ],
   "autoload": {
     "psr-4": {
-      "GithubWebhookJira\\": "src/GithubWebhookJira/"
+      "NocWorx\\GithubWebhookJira\\": "src/NocWorx/GithubWebhookJira/"
     }
   }
 }

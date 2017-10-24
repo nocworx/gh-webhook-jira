@@ -23,26 +23,55 @@
  * IN THE SOFTWARE.
  */
 
-namespace GithubWebhookJira;
+namespace NocWorx\GithubWebhookJira;
 
 require_once '../vendor/autoload.php';
 
 use \Symfony\Component\HttpFoundation\Request;
 use \Silex\Application;
 use \Silex\Provider\MonologServiceProvider;
-use \GithubWebhookJira\Webhook;
 
 $app = new Application();
 $app['debug'] = (getenv('DEBUG') === 'true');
 
 // Register the monolog logging service
-$app->register(new MonologServiceProvider(), array(
-  'monolog.logfile' => 'php://stderr',
-));
+$app->register(
+  new MonologServiceProvider(),
+  ['monolog.logfile' => 'php://stderr']
+);
+
+$config = [
+  'secret' => getenv('SECRET'),
+  'api_token' => getenv('GITHUB_API_TOKEN'),
+  'jira_url' => getenv('JIRA_URL'),
+  'jira_username' => getenv('JIRA_USERNAME'),
+  'jira_password' => getenv('JIRA_PASSWORD'),
+  'issue_prefix' => getenv('JIRA_ISSUE_PREFIX'),
+  'transition' => [
+    'opened' => [
+      'id' => filter_var(
+        getenv('JIRA_TRANSITION_OPENED'),
+        FILTER_VALIDATE_INT
+      ),
+      'fields' => json_decode(getenv('JIRA_TRANSITION_OPENED_FIELDS'), true)
+    ],
+    'closed' => [
+      'id' => filter_var(
+        getenv('JIRA_TRANSITION_CLOSED'),
+        FILTER_VALIDATE_INT
+      ),
+      'fields' => json_decode(getenv('JIRA_TRANSITION_CLOSED_FIELDS'), true)
+    ],
+    'merged' => [
+      'id' => filter_var(getenv('JIRA_TRANSITION_MERGED'),FILTER_VALIDATE_INT),
+      'fields' => json_decode(getenv('JIRA_TRANSITION_MERGED_FIELDS'), true)
+    ]
+  ]
+];
 
 // Handle the post request
-$app->post('/', function(Request $request) use ($app) {
-  $hook = new Webhook($app, $request);
+$app->post('/', function(Request $request) use ($app, $config) {
+  $hook = new Webhook($app, $request, $config);
   if ($hook->isValid()) {
     $hook->process();
   }

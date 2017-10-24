@@ -9,6 +9,12 @@
 - `JIRA_USERNAME` Username of Jira user
 - `JIRA_PASSWORD` Password of Jira user
 - `JIRA_ISSUE_PREFIX` Prefix for Jira issues (i.e. `NSD`)
+- `JIRA_TRANSITION_OPENED` Transition ID for Opened PRs
+- `JIRA_TRANSITION_OPENED_FIELDS` JSON String containing extra fields for opened PR transition
+- `JIRA_TRANSITION_CLOSED` Transition ID for Closed PRs
+- `JIRA_TRANSITION_CLOSED_FIELDS` JSON String containing extra fields for closed PR transition
+- `JIRA_TRANSITION_MERGED` Transition ID for Merged PRs
+- `JIRA_TRANSITION_MERGED_FIELDS` JSON String containing extra fields for merged PR transition
 
 ## Project Webhook Setup
 
